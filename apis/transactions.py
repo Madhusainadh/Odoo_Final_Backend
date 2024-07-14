@@ -5,76 +5,83 @@ from extensions import user_collection, transaction_collection, book_collection,
 
 transaction_api = Blueprint('transactions_api', __name__)
 
-@transaction_api.route('/api/v1/transaction', methods=['GET','POST'])
-def transaction():
+@transaction_api.route('/api/v1/borrow', methods=['GET','POST'])
+def borrow():
     if request.method == 'GET':
         user_id = request.args.get("user_id")
-        # Get all transactions of user
-        transactions = transaction_collection.find({"user_id": user_id})
-        for transaction in transactions:
-            transaction["_id"] = str(transaction["_id"])
-        return jsonify({"message": "User transactions", "Transactions": transactions, "success":True}), 200
+        book_id = request.args.get("book_id")
+        if user_id:
+            # Get all borrowed books of user
+            borrows = borrow_collection.find({"user_id": user_id})
+            user_borrows = []
+            for borrow in borrows:
+                borrow["_id"] = str(borrow["_id"])
+                user_borrows.append(borrow)
+            return jsonify({"message": "User borrowed books", "Borrows": user_borrows, "success":True}), 200
+        elif book_id:
+            # Get all users who borrowed book
+            borrows = borrow_collection.find({"book_id": book_id})
+            book_borrows = []
+            for borrow in borrows:
+                borrow["_id"] = str(borrow["_id"])
+                book_borrows.append(borrow)
+            return jsonify({"message": "Users who borrowed book", "Borrows": book_borrows, "success":True}), 200
+        return jsonify({"error": "Please send either user_id or book_id"})
     elif request.method == 'POST':
         user_id = request.args.get("user_id")
-        book_ids = request.args.get("book_ids")
-        quantities = request.args.get("quantities")
-        if not user_id or book_ids or quantities:
+        book_id = request.args.get("book_id")
+        return_date = request.args.get("return_date")
+        quantity = request.args.get("quantity")
+        price = request.args.get("price")
+        if not user_id and not book_id and not return_date and not quantity and not price:
             return jsonify({"error": "Missing data"})
-        result = {"book_not_found":[], "stock_not_available":[], "insufficient_balance":[], "borrowed_books":[]}
+        # Check if user and book exists
         user = user_collection.find_one({"_id": ObjectId(user_id)})
+        book = book_collection.find_one({"_id": ObjectId(book_id)})
         if not user:
             return jsonify({"error": "User not found"})
-        for i in range(len(book_ids)):
-            book = book_collection.find_one({"isbn": book_ids[i]})
-            # Check if book exists
-            if not book:
-                result["book_not_found"].append(book_ids[i])
-                continue
-            # Check if stock is available
-            if book['stock'] < quantities[i]:
-                result["stock_not_available"].append(book_ids[i])
-                continue
-            # Check if user has enough balance
-            if user['balance'] < book['price']:
-                result["insufficient_balance"].append(book_ids[i])
-                continue
-            # Create transaction
-            borrow_details = {
-                "user_id": str(user["_id"]),
-                "book_id": str(book['_id']),
-                "quantity": quantities[i],
-                "buy_date": date.today().strftime("%Y-%m-%d"),
-                "return_date": None
-            }
-            user["balance"] -= book['price'] * quantities[i]
-            result["borrowed_books"].append(borrow_details)
-            '''transaction_details = {
-                "user_id": str(user["_id"]),
-                "quantity": quantities[i],
-                "total": book['price'] * quantities[i],
-                "remaining_balance": user["balance"]
-            }'''
-        return jsonify({"message": "Transaction successful", "Details": result}), 201
-        
-    return jsonify({"error": "Invalid method"})
+        if not book:
+            return jsonify({"error": "Book not found"})
+        # Check if stock is available
+        if quantity > book['stock']:
+            return jsonify({"error": "Stock not available"})
+        # Check if user has enough balance
+        if price > user['balance']:
+            return jsonify({"error": "Insufficient balance"})
+        borrow_details = {
+            "user_id": user_id,
+            "book_id": book_id,
+            "buy_date": date.today().strftime("%Y-%m-%d"),
+            "return_date": return_date,
+            "status": "borrowed",
+            "quantity": quantity,
+            "price": price
+        }
+        borrow_id = borrow_collection.insert_one(borrow_details).inserted_id
+        borrow_details["_id"] = str(borrow_id)
+        return jsonify({"message": "Book borrowed successfully", "Borrow": borrow_details, "success":True}), 201
 
 @transaction_api.route('/api/v1/return', methods=['POST'])
 def return_book():
     user_id = request.args.get("user_id")
     book_id = request.args.get("book_id")
     late_fee = 0
-    if user_id and book_id:
-        # Check if book is borrowed by user
-        borrow = borrow_collection.find_one({"user_id": user_id, "book_id": book_id})
-        if not borrow:
-            return jsonify({"error": "Book not borrowed by user"})
-        # Update transaction
-        return_date = borrow["return_date"]
-        if not return_date:
-            return jsonify({"error": "Book already returned"})
-        issue_date = borrow["buy_date"]
-        return_date = date.today().strftime("%Y-%m-%d")
-        if return_date > issue_date + timedelta(days=30):
-            late_fee += 100 * (return_date - issue_date) / 7
-        return jsonify({"message": "Book returned successfully", "Late Fee Charged":late_fee}), 201
-    return jsonify({"error": "Missing data"})
+    if not user_id and not book_id:
+        return jsonify({"error": "Missing data"})
+    borrow = borrow_collection.find_one({"user_id": user_id, "book_id": book_id})
+    if not borrow:
+        return jsonify({"error": "Book not borrowed by user"})
+    if borrow["status"] == "returned":
+        return jsonify({"error": "Book already returned"})
+    # Update transaction
+    return_date = date.today().strftime("%Y-%m-%d")
+    expected_date = borrow["return_date"]
+    if expected_date > return_date:
+        # Late fees : 100Rs per week
+        late_fee += 100 * (expected_date - return_date) / 7
+    user = user_collection.find_one({"_id": ObjectId(user_id)})
+    user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"balance": user["balance"] - late_fee}})
+    borrow_collection.update_one({"_id": borrow["_id"]}, {"$set": {"status": "returned"}})
+    borrow = borrow_collection.find_one({"_id": borrow["_id"]})
+    borrow["_id"] = str(borrow["_id"])
+    return jsonify({"message": "Book returned successfully", "Borrow Details":borrow}), 201
