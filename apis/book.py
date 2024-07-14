@@ -93,7 +93,7 @@ def book():
     
     return jsonify({"error": "Invalid method"}), 400
 
-@book_api.route('/api/v1/books', methods=['GET'])
+@book_api.route('/api/v1/books', methods=['POST'])
 def books():
     data = request.get_json()
     title = data.get("title")
@@ -104,9 +104,13 @@ def books():
     for key in list(find.keys()):
         if not find[key]:
             del find[key]
-    books = book_collection.find(find)
+    if len(find.keys()) == 0:
+        books = book_collection.find()
+    else:
+        books = book_collection.find(find)
     all_books = []
     for book in books:
         book["_id"] = str(book["_id"])
         all_books.append(book)
+    print(all_books)
     return jsonify({"Books": all_books, "success": True}), 200
