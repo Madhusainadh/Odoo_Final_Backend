@@ -32,7 +32,7 @@ def book():
         if isbn and genre and stock and price:
             # Use google books api to get book details
             r = requests.get(f'https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}').json()
-            if r['totalItems'] == 0:
+            if not r.get("totalItems"):
                 return jsonify({"error": "No books found"}), 404
             title = r['items'][0]['volumeInfo']['title']
             author = r['items'][0]['volumeInfo']['authors']
@@ -60,7 +60,7 @@ def book():
         data = request.get_json()
         book_id = data.get("book_id")
         isbn = data.get("isbn")
-        stock = data.get("Stock")
+        stock = data.get("stock")
         price = data.get("price")
         genre = data.get("genre")
         if not book_id:
@@ -112,5 +112,4 @@ def books():
     for book in books:
         book["_id"] = str(book["_id"])
         all_books.append(book)
-    print(all_books)
     return jsonify({"Books": all_books, "success": True}), 200

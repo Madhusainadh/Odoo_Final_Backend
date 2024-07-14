@@ -1,4 +1,6 @@
 Flask==3.0.3
 Flask_Bcrypt==1.0.1
+Flask_Cors==4.0.1
 pymongo==4.8.0
 Requests==2.32.3
+python-dotenv==1.0.1

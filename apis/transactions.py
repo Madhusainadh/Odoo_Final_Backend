@@ -5,7 +5,7 @@ from extensions import user_collection, transaction_collection, book_collection,
 
 transaction_api = Blueprint('transactions_api', __name__)
 
-@transaction_api.route('/api/v1/borrow', methods=['GET','POST'])
+@transaction_api.route('/api/v1/order', methods=['GET','POST'])
 def borrow():
     if request.method == 'GET':
         user_id = request.args.get("user_id")
