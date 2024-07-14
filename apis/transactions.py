@@ -28,11 +28,12 @@ def borrow():
             return jsonify({"message": "Users who borrowed book", "Borrows": book_borrows, "success":True}), 200
         return jsonify({"error": "Please send either user_id or book_id"})
     elif request.method == 'POST':
-        user_id = request.args.get("user_id")
-        book_id = request.args.get("book_id")
-        return_date = request.args.get("return_date")
-        quantity = request.args.get("quantity")
-        price = request.args.get("price")
+        data = request.get_json()
+        user_id = data.get("user_id")
+        book_id = data.get("book_id")
+        return_date = data.get("return_date")
+        quantity = data.get("quantity")
+        price = data.get("price")
         if not user_id and not book_id and not return_date and not quantity and not price:
             return jsonify({"error": "Missing data"})
         # Check if user and book exists
@@ -43,11 +44,14 @@ def borrow():
         if not book:
             return jsonify({"error": "Book not found"})
         # Check if stock is available
-        if quantity > book['stock']:
+        print(book)
+        if int(quantity) > book['Stock']:
             return jsonify({"error": "Stock not available"})
         # Check if user has enough balance
-        if price > user['balance']:
+        if int(price) > user['balance']:
             return jsonify({"error": "Insufficient balance"})
+        user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"balance": user["balance"] - int(price)}})
+        book_collection.update_one({"_id": ObjectId(book_id)}, {"$set": {"Stock": book["Stock"] - int(quantity)}})
         borrow_details = {
             "user_id": user_id,
             "book_id": book_id,
@@ -60,6 +64,15 @@ def borrow():
         borrow_id = borrow_collection.insert_one(borrow_details).inserted_id
         borrow_details["_id"] = str(borrow_id)
         return jsonify({"message": "Book borrowed successfully", "Borrow": borrow_details, "success":True}), 201
+
+@transaction_api.route('/api/v1/orders', methods=['GET'])
+def orders():
+    orders = borrow_collection.find()
+    all_orders = []
+    for order in orders:
+        order["_id"] = str(order["_id"])
+        all_orders.append(order)
+    return jsonify({"message": "All orders", "Orders": all_orders, "success":True}), 200
 
 @transaction_api.route('/api/v1/return', methods=['POST'])
 def return_book():

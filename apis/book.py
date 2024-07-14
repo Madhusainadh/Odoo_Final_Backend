@@ -60,7 +60,7 @@ def book():
         data = request.get_json()
         book_id = data.get("book_id")
         isbn = data.get("isbn")
-        stock = data.get("stock")
+        stock = data.get("Stock")
         price = data.get("price")
         genre = data.get("genre")
         if not book_id:
