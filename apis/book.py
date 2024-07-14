@@ -86,21 +86,17 @@ def book():
 
 @book_api.route('/api/v1/books', methods=['GET'])
 def books():
+    title = request.args.get("title")
     author = request.args.get("author")
     genre = request.args.get("genre")
     # Get all books
-    if author and genre:
-        # Get books by author and genre
-        books = book_collection.find({"authors": author, "genre": genre})
-    elif author:
-        # Get books by author
-        books = book_collection.find({"authors": author})
-    elif genre:
-        # Get books by genre
-        books = book_collection.find({"genre": genre})
-    else:
-        books = book_collection.find()
-        
+    find = {"title": title, "authors": author, "genre": genre}
+    for key in list(find.keys()):
+        if not find[key]:
+            del find[key]
+    books = book_collection.find(find)
+    all_books = []
     for book in books:
         book["_id"] = str(book["_id"])
-    return jsonify({"message": "All books"}), 200
+        all_books.append(book)
+    return jsonify({"Books": all_books, "success": True}), 200

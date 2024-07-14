@@ -42,7 +42,7 @@ def user():
             "role": role
             }
             user_id = user_collection.insert_one(user_details).inserted_id
-            user_details["user_id"] = str(user_id)
+            user_details["_id"] = str(user_id)
             return jsonify({"User": user_details, "success":True}), 201
         return jsonify({"error": "Missing data"})
     elif request.method == 'PUT':
@@ -62,15 +62,18 @@ def user():
             user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"name": name}})
         if email:
             # Change email
-            user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": email}})
+            user = user_collection.find_one({"email": email})
+            if not user: user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": email}})
         if phone:
             # Change phone
-            user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"phoneNumber": phone}})
+            user = user_collection.find_one({"phoneNumber": phone})
+            if not user: user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"phoneNumber": phone}})
         if balance:
-            # Change address
+            # Change balance
             user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"balance": balance}})
         if password:
             # Change password
+            password = bcrypt.generate_password_hash(password).decode('utf-8')
             user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"password": password}})
         user = user_collection.find_one({"_id": ObjectId(user_id)})
         user["_id"] = str(user["_id"])
@@ -92,6 +95,8 @@ def user():
 def users():
     # Get all users
     users = user_collection.find()
+    all_users = []
     for user in users:
         user["_id"] = str(user["_id"])
-    return jsonify({"Users":users, "success":True}), 200
+        all_users.append(user)
+    return jsonify({"Users":all_users, "success":True}), 200
