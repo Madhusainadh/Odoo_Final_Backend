@@ -93,7 +93,9 @@ def return_book():
         # Late fees : 100Rs per week
         late_fee += 100 * (expected_date - return_date) / 7
     user = user_collection.find_one({"_id": ObjectId(user_id)})
+    book = book_collection.find_one({"_id": ObjectId(book_id)})
     user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": {"balance": user["balance"] - late_fee}})
+    book_collection.update_one({"_id": ObjectId(book_id)}, {"$set": {"Stock": book["Stock"] + borrow["quantity"]}})
     borrow_collection.update_one({"_id": borrow["_id"]}, {"$set": {"status": "returned"}})
     borrow = borrow_collection.find_one({"_id": borrow["_id"]})
     borrow["_id"] = str(borrow["_id"])
