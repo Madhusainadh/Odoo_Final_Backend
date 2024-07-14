@@ -30,7 +30,8 @@ def login():
     if not user:
         return jsonify({"error": "Invalid email or password"}), 400
     # Return user details
-    return jsonify({"message": "Logged in successfully", "success": True}), 200
+    user["_id"] = str(user["_id"])
+    return jsonify({"message": "Logged in successfully", "User":user, "success": True}), 200
 
 if __name__ == '__main__':
     app.run()
