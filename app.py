@@ -17,9 +17,10 @@ app.register_blueprint(transaction_api)
 
 @app.route('/api/v1/login', methods=['POST'])
 def login():
-    email = request.args.get("email")
-    phone = request.args.get("phoneNumber")
-    password = request.args.get("password")
+    data = request.get_json()
+    email = data.get("email")
+    phone = data.get("phoneNumber")
+    password = data.get("password")
     if (not email and not phone) or not password:
         return jsonify({"error": "Missing email or password"}), 400
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
