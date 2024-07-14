@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 from extensions import bcrypt, user_collection
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 bcrypt.init_app(app)
 
